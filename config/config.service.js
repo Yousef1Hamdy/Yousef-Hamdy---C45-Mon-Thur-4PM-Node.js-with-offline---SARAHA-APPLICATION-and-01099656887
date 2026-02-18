@@ -19,5 +19,13 @@ export const ENCRYPTION_SECRET_KEY = process.env.ENCRYPTION_SECRET_KEY;
 export const JWT_EXPIRE_IN = process.env.JWT_EXPIRE_IN;
 export const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY;
 
+// SEND EMAIL
+
+
+export const SMTP_USER = process.env.SMTP_USER;
+export const SMTP_PASS = process.env.SMTP_PASS;
+export const SMTP_HOST = process.env.SMTP_HOST;
+export const SMTP_PORT = process.env.SMTP_PORT;
+
 export const SALT_ROUND = parseInt(process.env.SALT_ROUND ?? "10");
 console.log({ SALT_ROUND });

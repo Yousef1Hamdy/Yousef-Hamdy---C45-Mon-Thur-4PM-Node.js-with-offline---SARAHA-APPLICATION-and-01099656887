@@ -1,17 +1,24 @@
 export const findOne = async ({
   model,
   filter = {},
-  select = " ",
+  select = "",
   options = {},
 } = {}) => {
-  const doc = model.findOne(filter).select(select);
+  let query = model.findOne(filter).select(select);
+
   if (options.populate) {
-    doc.populate(options.populate);
+    query = query.populate(options.populate);
   }
+
   if (options.lean) {
-    doc.lean();
+    query = query.lean();
   }
-  return await doc.exec();
+
+  if (options.sort) {
+    query = query.sort(options.sort);
+  }
+
+  return await query.exec();
 };
 
 export const create = async ({

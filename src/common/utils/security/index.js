@@ -1,3 +1,4 @@
 export * from "./hash.security.js";
 export * from "./encryption.security.js";
 export * from "./jwt.security.js";
+export * from "./sendEmail.security.js";

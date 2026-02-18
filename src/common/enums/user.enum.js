@@ -1,6 +1,6 @@
 export const GenderEnum = {
-  Male: 1,
-  Female: 2,
+  Male: 0,
+  Female: 1,
 };
 
 export const ProviderEnum = {
