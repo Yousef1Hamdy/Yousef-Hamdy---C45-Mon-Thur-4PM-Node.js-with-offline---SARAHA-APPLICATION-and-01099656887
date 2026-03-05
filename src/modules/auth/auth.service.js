@@ -1,15 +1,24 @@
 import {
+  ACCESS_EXPIRE_IN,
+  USER_TOKEN_SECRET_KEY,
+} from "../../../config/config.service.js";
+import {
+  BadRequestException,
   compareHash,
   ConflictException,
+  createLoginCredentials,
   decrypt,
   encrypt,
   generateHash,
   generateOTP,
   generateToken,
   NotFoundException,
+  ProviderEnum,
   sendEmail,
+  TokenTypeEnum,
 } from "../../common/index.js";
 import { createOne, findOne, UserModel, OtpModel } from "../../DB/index.js";
+import { OAuth2Client } from "google-auth-library";
 
 export const signup = async (inputs) => {
   const { username, email, password, gender, phone } = inputs;
@@ -21,6 +30,7 @@ export const signup = async (inputs) => {
   const user = await createOne({
     model: UserModel,
     data: {
+      ...inputs,
       username,
       email,
       password: await generateHash({ plaintext: password }),
@@ -34,7 +44,7 @@ export const signup = async (inputs) => {
   return user;
 };
 
-export const login = async (inputs) => {
+export const login = async (inputs, issuer) => {
   const { email, password } = inputs;
 
   const user = await findOne({
@@ -54,29 +64,24 @@ export const login = async (inputs) => {
     throw NotFoundException({ message: "invalid email or password" });
   }
 
-  if (!user.confirmEmail) {
-    throw ConflictException({
-      message: "Please verify your email first",
-    });
-  }
+  // if (!user.confirmEmail) {
+  //   throw ConflictException({
+  //     message: "Please verify your email first",
+  //   });
+  // }
 
-  const token = await generateToken({
-    payload: { user_id: user?._id.toString() },
-  });
+  const { access_token, refresh_token } = await createLoginCredentials(
+    user,
+    issuer,
+  );
 
   return {
-    user: {
-      id: user._id,
-      username: user.username,
-      email: user.email,
-      phone: user.phone ? await decrypt(user.phone) : null,
-      gender: user.gender,
-    },
-    token,
+    access_token,
+    refresh_token,
   };
 };
 
-const sendVerificationOTP = async (email) => {
+export const sendVerificationOTP = async (email) => {
   const otp = await generateOTP();
 
   const hashedOTP = await generateHash({ plaintext: otp });
@@ -141,3 +146,88 @@ export const verifyEmail = async ({ email, otp }) => {
 
   return { message: "Email verified successfully" };
 };
+
+const verifyGoogleAccount = async (idToken) => {
+  const client = new OAuth2Client();
+
+  const ticket = await client.verifyIdToken({
+    idToken,
+    audience: [
+      "445273522179-oqbkkanildgqjkp43vuuf54irf7k59g2.apps.googleusercontent.com",
+    ],
+  });
+  const payload = ticket.getPayload();
+  if (!payload?.email_verified) {
+    throw BadRequestException({
+      message: "Fail to verify this account with google",
+    });
+  }
+  return payload;
+};
+
+export const signupWithGmail = async ({ idToken }, issuer) => {
+  const payload = await verifyGoogleAccount(idToken);
+
+  const checkUserExist = await findOne({
+    model: UserModel,
+    filter: { email: payload.email },
+  });
+  if (checkUserExist) {
+    if (checkUserExist.provide == ProviderEnum.System) {
+      throw ConflictException({
+        message: "Account already exist with different provider",
+      });
+    }
+
+    const account = await loginWithGmail(idToken, issuer);
+    return { account, status: 200 };
+  }
+
+  const user = await createOne({
+    model: UserModel,
+    data: {
+      firstName: payload?.given_name,
+      lastName: payload?.family_name || " ",
+      email: payload.email,
+      provider: ProviderEnum.Google,
+      profilePicture: payload.picture,
+      confirmEmail: new Date(),
+    },
+  });
+
+  return { account: await createLoginCredentials(user, issuer) };
+};
+
+export const loginWithGmail = async (idToken, issuer) => {
+  const payload = await verifyGoogleAccount(idToken);
+  const user = await findOne({
+    model: UserModel,
+    filter: { email: payload.email, provider: ProviderEnum.Google },
+  });
+  if (!user) {
+    throw NotFoundException({
+      message: "Invalid login credentials or Invalid login approach",
+    });
+  }
+
+  return await createLoginCredentials(user, issuer);
+};
+
+/*
+  payload: {
+    iss: 'https://accounts.google.com',
+    azp: '445273522179-oqbkkanildgqjkp43vuuf54irf7k59g2.apps.googleusercontent.com',
+    aud: '445273522179-oqbkkanildgqjkp43vuuf54irf7k59g2.apps.googleusercontent.com',
+    sub: '112858643601879853514',
+    email: 'y5374036@gmail.com',
+    email_verified: true,
+    nbf: 1771949457,
+    name: 'yousef hamdy',
+    picture: 'https://lh3.googleusercontent.com/a/ACg8ocLrhmj6Aifc0dP5z1iIodVGZhRewnKczAj4aRWDj82kgwpjrg=s96-c',
+    given_name: 'yousef',
+    family_name: 'hamdy',
+    iat: 1771949757,
+    exp: 1771953357,
+    jti: 'f969a19a1ee03cb93627725a71d0575ae6fbd104'
+  }
+*/

@@ -43,3 +43,10 @@ export const BadRequestException = ({
 } = {}) => {
   throw ErrorException({ message, cause: { status: 400, extra } });
 };
+
+export const ForbiddenRequestException = ({
+  message = "ForbiddenRequestException",
+  extra = undefined,
+} = {}) => {
+  throw ErrorException({ message, cause: { status: 403, extra } });
+};

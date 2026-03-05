@@ -15,12 +15,19 @@ export const port = process.env.PORT ?? 7000;
 
 export const DB_URI = process.env.DB_URI;
 export const ENCRYPTION_SECRET_KEY = process.env.ENCRYPTION_SECRET_KEY;
+
 // jwt
-export const JWT_EXPIRE_IN = process.env.JWT_EXPIRE_IN;
-export const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY;
+export const SYSTEM_TOKEN_SECRET_KEY = process.env.SYSTEM_TOKEN_SECRET_KEY;
+export const USER_TOKEN_SECRET_KEY = process.env.USER_TOKEN_SECRET_KEY;
+export const ACCESS_EXPIRE_IN = parseInt(process.env.ACCESS_EXPIRE_IN);
+
+export const SYSTEM_REFRESH_TOKEN_SECRET_KEY =
+  process.env.SYSTEM_REFRESH_TOKEN_SECRET_KEY;
+export const USER_REFRESH_TOKEN_SECRET_KEY =
+  process.env.USER_REFRESH_TOKEN_SECRET_KEY;
+export const REFRESH_EXPIRE_IN = parseInt(process.env.REFRESH_EXPIRE_IN);
 
 // SEND EMAIL
-
 
 export const SMTP_USER = process.env.SMTP_USER;
 export const SMTP_PASS = process.env.SMTP_PASS;

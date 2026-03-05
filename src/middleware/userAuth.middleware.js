@@ -1,20 +1,46 @@
 import {
+  decodeToken,
+  ForbiddenRequestException,
+  TokenTypeEnum,
   UnauthorizedException,
-  verifyToken,
 } from "../common/index.js";
+export const authentication = (tokenType = TokenTypeEnum.access) => {
+  return async (req, res, next) => {
+    try {
+      const authHeader = req.headers.authorization;
+      // console.log({authHeader});
+      if (!authHeader) {
+        throw UnauthorizedException({ message: "Unauthorized" });
+      }
 
-export const userAuth = async (req, res, next) => {
-  try {
-    const authHeader = req.headers.authorization;
-    // console.log({authHeader});
-    if (!authHeader) {
-      throw UnauthorizedException({ message: "Unauthorized" });
+      const [flag, credential] = authHeader.split(" ");
+
+      if (!flag || !credential || flag !== "Bearer") {
+        throw new UnauthorizedException({ message: "Invalid token format" });
+      }
+      const decoded = await decodeToken({ token : credential, tokenType });
+      req.user = decoded;
+      next();
+    } catch (error) {
+      throw error;
     }
-    const token = authHeader;
-    const decoded = verifyToken(token);
-    req.user = decoded;
-    next();
-  } catch (error) {
-    throw error;
-  }
+  };
+};
+
+export const authorization = (accessRoles = []) => {
+  return async (req, res, next) => {
+    try {
+      if (!req.user) {
+        throw new UnauthorizedException({ message: "Unauthorized" });
+      }
+
+      if (!accessRoles.includes(req.user.role)) {
+        throw ForbiddenRequestException({ message: "Not allow account" });
+      }
+
+      next();
+    } catch (error) {
+      throw error;
+    }
+  };
 };

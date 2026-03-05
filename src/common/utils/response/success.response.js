@@ -4,5 +4,5 @@ export const successResponse = ({
   status = 200,
   data = undefined,
 } = {}) => {
-    res.status(status).json({message , data})
+    res.status(status).json({message ,status, data})
 };
