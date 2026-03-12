@@ -1,14 +1,23 @@
+import multer from "multer";
 import { NODE_ENV } from "../../../../config/config.service.js";
 
 export const globalErrorHandling = (error, req, res, next) => {
-  const status = error.cause?.status ?? 500;
+  let status = error.cause?.status ?? 500;
+  const mode = NODE_ENV == "production";
+  const defaultErrorMessage = "something went wrong server error";
+  const displayErrorMessage = error.message || defaultErrorMessage;
+  if (error instanceof multer.MulterError) {
+    status = 400;
+  }
   return res.status(status).json({
-    error_message:
-      status == 500
-        ? "something went wrong"
-        : (error.message ?? "something went wrong"),
-    stack: NODE_ENV == "development" ? error.stack : undefined,
+    status,
+    error_message: mode
+      ? status == 500
+        ? defaultErrorMessage
+        : displayErrorMessage
+      : displayErrorMessage,
     extra: error.cause?.extra,
+    stack: mode ? undefined : error.stack,
   });
 };
 

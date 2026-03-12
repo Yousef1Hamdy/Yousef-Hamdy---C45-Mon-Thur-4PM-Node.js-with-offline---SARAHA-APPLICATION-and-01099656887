@@ -1,6 +1,6 @@
 export const successResponse = ({
   res,
-  message,
+  message = "Done",
   status = 200,
   data = undefined,
 } = {}) => {

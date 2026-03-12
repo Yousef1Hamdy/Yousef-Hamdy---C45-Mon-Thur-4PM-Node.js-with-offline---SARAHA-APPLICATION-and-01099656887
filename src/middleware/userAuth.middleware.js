@@ -1,3 +1,4 @@
+import { decode } from "jsonwebtoken";
 import {
   decodeToken,
   ForbiddenRequestException,
@@ -18,8 +19,12 @@ export const authentication = (tokenType = TokenTypeEnum.access) => {
       if (!flag || !credential || flag !== "Bearer") {
         throw new UnauthorizedException({ message: "Invalid token format" });
       }
-      const decoded = await decodeToken({ token : credential, tokenType });
-      req.user = decoded;
+      const { user, decode } = await decodeToken({
+        token: credential,
+        tokenType,
+      });
+      req.user = user;
+      req.decoded = decode;
       next();
     } catch (error) {
       throw error;

@@ -1,12 +1,20 @@
 import nodemailer from "nodemailer";
 import {
+  APPLICATION_NAME,
   SMTP_HOST,
   SMTP_PASS,
   SMTP_PORT,
   SMTP_USER,
 } from "../../../../config/config.service.js";
 
-export const sendEmail = async ({ to, subject, html } = {}) => {
+export const sendEmail = async ({
+  to,
+  cc,
+  bcc,
+  subject,
+  html,
+  attachments = [],
+} = {}) => {
   try {
     const transporter = nodemailer.createTransport({
       host: SMTP_HOST,
@@ -19,9 +27,12 @@ export const sendEmail = async ({ to, subject, html } = {}) => {
     });
 
     const mailOptions = {
-      from: `Saraha App <${SMTP_USER}> `,
+      from: `"${APPLICATION_NAME}" <${SMTP_USER}> `,
       to,
+      cc,
+      bcc,
       subject,
+      attachments,
       html,
     };
 

@@ -37,3 +37,7 @@ export const createOne = async ({
   const [doc] = await create({ model, data: [data], options });
   return doc;
 };
+
+export const deleteMany = async ({ model, filter = {}, options = {} } = {}) => {
+  return await model.deleteMany(filter, options);
+};

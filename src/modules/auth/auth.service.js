@@ -1,24 +1,79 @@
 import {
-  ACCESS_EXPIRE_IN,
-  USER_TOKEN_SECRET_KEY,
-} from "../../../config/config.service.js";
-import {
   BadRequestException,
   compareHash,
   ConflictException,
   createLoginCredentials,
-  decrypt,
+  deleteKey,
+  emailEmitter,
+  EmailEnum,
+  emailTemplate,
   encrypt,
   generateHash,
   generateOTP,
-  generateToken,
+  get,
+  increment,
+  keys,
   NotFoundException,
+  otpBlockKey,
+  otpKey,
+  otpMaxRequestKey,
   ProviderEnum,
   sendEmail,
-  TokenTypeEnum,
+  set,
+  ttl,
 } from "../../common/index.js";
-import { createOne, findOne, UserModel, OtpModel } from "../../DB/index.js";
+import { createOne, findOne, UserModel } from "../../DB/index.js";
 import { OAuth2Client } from "google-auth-library";
+
+export const verifyEmailOtp = async ({
+  email,
+  subject = EmailEnum.ConfirmEmail,
+  title = "Verify Your Account",
+} = {}) => {
+  const blockKey = otpBlockKey({ email, type: subject });
+  const remainBlockTimeOtp = await ttl(blockKey);
+  if (remainBlockTimeOtp > 0) {
+    throw ConflictException({
+      message: `You have reached max request trail count please tray again after ${remainBlockTimeOtp} second`,
+    });
+  }
+
+  // check max trail count
+  const maxTrailCountKey = otpMaxRequestKey({ email, type: subject });
+  const checkMaxOtpRequest = Number((await get(maxTrailCountKey)) || 0);
+
+  if (checkMaxOtpRequest >= 3) {
+    await set({
+      key: otpBlockKey({ email, type: subject }),
+      value: 0,
+      ttl: 300,
+    });
+    throw ConflictException({
+      message:
+        "You have reached max request trail count please tray again after 300 second",
+    });
+  }
+
+  checkMaxOtpRequest > 0
+    ? await increment(maxTrailCountKey)
+    : await set({ key: maxTrailCountKey, value: 1, ttl: 300 });
+
+  const otp = await generateOTP();
+
+  const hashedOTP = await generateHash({ plaintext: otp });
+
+  await set({
+    key: otpKey({ email, type: subject }),
+    value: hashedOTP,
+    ttl: 120,
+  });
+
+  await sendEmail({
+    to: email,
+    subject,
+    html: emailTemplate({ otp, ttl: 2 * 60, title }),
+  });
+};
 
 export const signup = async (inputs) => {
   const { username, email, password, gender, phone } = inputs;
@@ -39,9 +94,77 @@ export const signup = async (inputs) => {
     },
   });
 
-  await sendVerificationOTP(email);
-
+  emailEmitter.emit(EmailEnum.ConfirmEmail, async () => {
+    await verifyEmailOtp({ email });
+  });
+  
   return user;
+};
+
+export const resendConfirmEmail = async (inputs) => {
+  const { email } = inputs;
+
+  const account = await findOne({
+    model: UserModel,
+    filter: {
+      email,
+      confirmEmail: { $exists: false },
+      provider: ProviderEnum.System,
+    },
+  });
+
+  if (!account) {
+    throw NotFoundException({ message: "Fail to find matching account" });
+  }
+
+  const remainTime = await ttl(otpKey(email));
+  if (remainTime > 0) {
+    throw ConflictException({
+      message: `sorry we can't provider a new otp until exists one is expire you can try again later after ${remainTime} second`,
+    });
+  }
+
+  await verifyEmailOtp({ email });
+
+  return;
+};
+
+export const confirmEmail = async (inputs) => {
+  const { email, otp } = inputs;
+
+  const account = await findOne({
+    model: UserModel,
+    filter: {
+      email,
+      confirmEmail: { $exists: false },
+      provider: ProviderEnum.System,
+    },
+  });
+
+  if (!account) {
+    throw NotFoundException({ message: "Fail to find matching account" });
+  }
+
+  const hashOtp = await get(otpKey(email));
+
+  if (!hashOtp) {
+    throw NotFoundException({ message: "Expired otp" });
+  }
+
+  const match = await compareHash({
+    plaintext: otp,
+    cipherText: hashOtp,
+  });
+
+  if (!match) {
+    throw NotFoundException({ message: "Invalid or expired OTP" });
+  }
+  account.confirmEmail = new Date();
+  await account.save();
+
+  await deleteKey(await keys(otpKey(email)));
+
+  return { message: "Email verified successfully" };
 };
 
 export const login = async (inputs, issuer) => {
@@ -49,7 +172,11 @@ export const login = async (inputs, issuer) => {
 
   const user = await findOne({
     model: UserModel,
-    filter: { email },
+    filter: {
+      email,
+      confirmEmail: { $exists: true },
+      provider: ProviderEnum.System,
+    },
     select: "+password",
   });
   if (!user) {
@@ -64,12 +191,6 @@ export const login = async (inputs, issuer) => {
     throw NotFoundException({ message: "invalid email or password" });
   }
 
-  // if (!user.confirmEmail) {
-  //   throw ConflictException({
-  //     message: "Please verify your email first",
-  //   });
-  // }
-
   const { access_token, refresh_token } = await createLoginCredentials(
     user,
     issuer,
@@ -79,72 +200,6 @@ export const login = async (inputs, issuer) => {
     access_token,
     refresh_token,
   };
-};
-
-export const sendVerificationOTP = async (email) => {
-  const otp = await generateOTP();
-
-  const hashedOTP = await generateHash({ plaintext: otp });
-
-  // delete old OTP first
-  await OtpModel.deleteMany({ email });
-
-  await createOne({
-    model: OtpModel,
-    data: {
-      email,
-      otp: hashedOTP,
-      expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes
-    },
-  });
-
-  const htmlTemplate = `
-    <div style="font-family:Arial; text-align:center;">
-      <h2>Verify Your Account</h2>
-      <p>Your verification code is:</p>
-      <div style="
-        font-size:30px;
-        font-weight:bold;
-        letter-spacing:6px;
-        color:#4f46e5;">
-        ${otp}
-      </div>
-      <p>This code expires in 5 minutes.</p>
-    </div>
-  `;
-
-  const sendOTP = await sendEmail({
-    to: email,
-    subject: "Email Verification Code",
-    html: htmlTemplate,
-  });
-};
-
-export const verifyEmail = async ({ email, otp }) => {
-  const record = await findOne({
-    model: OtpModel,
-    filter: { email },
-    options: { sort: { createdAt: -1 } },
-  });
-
-  if (!record) {
-    throw NotFoundException({ message: "Invalid or expired OTP" });
-  }
-
-  const match = await compareHash({
-    plaintext: otp,
-    cipherText: record.otp,
-  });
-
-  if (!match) {
-    throw NotFoundException({ message: "Invalid or expired OTP" });
-  }
-
-  await UserModel.updateOne({ email }, { confirmEmail: new Date() });
-
-  await OtpModel.deleteMany({ email });
-
-  return { message: "Email verified successfully" };
 };
 
 const verifyGoogleAccount = async (idToken) => {

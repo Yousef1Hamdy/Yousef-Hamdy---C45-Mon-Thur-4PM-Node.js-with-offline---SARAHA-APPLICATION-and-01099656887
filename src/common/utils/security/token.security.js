@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import jwt from "jsonwebtoken";
 import {
   ACCESS_EXPIRE_IN,
@@ -7,12 +8,18 @@ import {
   USER_REFRESH_TOKEN_SECRET_KEY,
   USER_TOKEN_SECRET_KEY,
 } from "../../../../config/config.service.js";
-import { BadRequestException, ErrorException, NotFoundException } from "../response/index.js";
+import {
+  BadRequestException,
+  ErrorException,
+  NotFoundException,
+  UnauthorizedException,
+} from "../response/index.js";
 
 import { AudienceEnum, TokenTypeEnum } from "../../enums/security.enum.js";
 import { RoleEnum } from "../../enums/user.enum.js";
 import { findOne } from "../../../DB/database.repository.js";
 import { UserModel } from "../../../DB/index.js";
+import { get, revokeTokenKey } from "../../services/index.js";
 
 export const generateToken = ({
   payload,
@@ -63,6 +70,8 @@ export const createLoginCredentials = async (user, issuer) => {
   const { accessSignature, refreshSignature, audience } =
     await getTokenSignature(user.role);
 
+  const jwtid = randomUUID();
+
   const access_token = await generateToken({
     payload: { sub: user?._id.toString() },
     security: accessSignature,
@@ -70,6 +79,7 @@ export const createLoginCredentials = async (user, issuer) => {
       issuer,
       expiresIn: ACCESS_EXPIRE_IN,
       audience: [TokenTypeEnum.access, audience],
+      jwtid,
     },
   });
 
@@ -80,6 +90,7 @@ export const createLoginCredentials = async (user, issuer) => {
       issuer,
       expiresIn: REFRESH_EXPIRE_IN,
       audience: [TokenTypeEnum.refresh, audience],
+      jwtid,
     },
   });
 
@@ -115,11 +126,16 @@ export const decodeToken = async ({
     });
   }
   const [decodeTokenType, audienceType] = decode.aud;
-  console.log({decodeTokenType , tokenType});
   if (decodeTokenType !== tokenType) {
     throw BadRequestException({
       message: `Invalid token type token of type ${decodeTokenType} can't access this api while we expected token of type ${tokenType}`,
     });
+  }
+  if (
+    decode.jti &&
+    (await get(revokeTokenKey({ userId: decode.sub, jti: decode.jti })))
+  ) {
+    throw UnauthorizedException({ message: "Invalid login session -" });
   }
   const signatureLevel = await getSignatureLevel(audienceType);
 
@@ -131,10 +147,21 @@ export const decodeToken = async ({
       tokenType == TokenTypeEnum.access ? accessSignature : refreshSignature,
   });
 
-  const user = await findOne({model : UserModel , filter : {_id : verifyData.sub}})
+  const user = await findOne({
+    model: UserModel,
+    filter: { _id: verifyData.sub },
+  });
 
-  if(!user){
-    throw NotFoundException({message : "not Register account"})
+  if (!user) {
+    throw NotFoundException({ message: "not Register account" });
   }
-  return user
+
+  if (
+    user.changeCredentialTime &&
+    user.changeCredentialTime.getTime() > decode.iat * 1000
+  ) {
+    throw new UnauthorizedException({ message: "Invalid login session." });
+  }
+
+  return { user, decode };
 };

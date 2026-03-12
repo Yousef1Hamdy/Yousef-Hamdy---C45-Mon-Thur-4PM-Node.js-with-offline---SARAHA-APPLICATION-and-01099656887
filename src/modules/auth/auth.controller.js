@@ -1,5 +1,11 @@
 import { Router } from "express";
-import { login, signup, signupWithGmail } from "./auth.service.js";
+import {
+  confirmEmail,
+  login,
+  resendConfirmEmail,
+  signup,
+  signupWithGmail,
+} from "./auth.service.js";
 import { successResponse } from "../../common/index.js";
 import { validation } from "../../middleware/validation.middleware.js";
 import * as validators from "./auth.validation.js";
@@ -18,22 +24,41 @@ router.post(
   },
 );
 
-router.post(
-  "/login",
-  validation({ body: validators.login }),
+router.patch(
+  "/resend-confirm-email",
+  validation({ body: validators.resendConfirmEmail }),
   async (req, res, next) => {
-    const protocol = req.protocol; // http أو https
-    const host = req.get("host");
-    const issuer = `${protocol}://${host}`;
-
-    const user = await login(req.body, issuer);
+    const  message  = await resendConfirmEmail(req.body);
     return successResponse({
-      res,
-      message: "Done Login",
-      data: user,
+      res
     });
   },
 );
+
+router.patch(
+  "/confirm-email",
+  validation({ body: validators.confirmEmail }),
+  async (req, res, next) => {
+    const { message } = await confirmEmail(req.body);
+    return successResponse({
+      res,
+      message,
+    });
+  },
+);
+
+router.post("/login", validation(validators.login), async (req, res, next) => {
+  const protocol = req.protocol; // http أو https
+  const host = req.get("host");
+  const issuer = `${protocol}://${host}`;
+
+  const user = await login(req.body, issuer);
+  return successResponse({
+    res,
+    message: "Done Login",
+    data: user,
+  });
+});
 
 router.post("/signup/gmail", async (req, res, next) => {
   const protocol = req.protocol; // http أو https
