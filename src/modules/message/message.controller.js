@@ -7,7 +7,12 @@ import {
   successResponse,
   TokenTypeEnum,
 } from "../../common/index.js";
-import { deleteMessage, getMessage, getMessages, sendMessage } from "./message.service.js";
+import {
+  deleteMessage,
+  getMessage,
+  getMessages,
+  sendMessage,
+} from "./message.service.js";
 import { validation } from "../../middleware/validation.middleware.js";
 import * as validators from "./message.validation.js";
 import { authentication } from "../../middleware/userAuth.middleware.js";
@@ -15,7 +20,7 @@ import { authentication } from "../../middleware/userAuth.middleware.js";
 const router = Router();
 
 router.post(
-  "/:receiverId",
+  "/send-message/:receiverId",
   async (req, res, next) => {
     if (req.headers.authorization) {
       const { user, decode } = await decodeToken({
@@ -55,7 +60,7 @@ router.post(
 );
 
 router.get(
-  "/:messageId",
+  "/get-message/:messageId",
   authentication(),
   validation(validators.getMessage),
   async (req, res, next) => {
@@ -68,7 +73,7 @@ router.get(
 );
 
 router.delete(
-  "/:messageId",
+  "/delete-message/:messageId",
   authentication(),
   validation(validators.getMessage),
   async (req, res, next) => {
@@ -80,20 +85,12 @@ router.delete(
   },
 );
 
-router.get(
-  "/list",
-  authentication(),
-  async (req, res, next) => {
-    const messages = await getMessages(req.user);
-    return successResponse({
-      res,
-      data: { messages },
-    });
-  },
-);
-
-
-
-
+router.get("/my-messages", authentication(), async (req, res, next) => {
+  const messages = await getMessages(req.user);
+  return successResponse({
+    res,
+    data: { messages },
+  });
+});
 
 export default router;

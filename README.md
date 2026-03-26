@@ -53,38 +53,38 @@ A Node.js web application for anonymous messaging, built with Express.js, MongoD
 
 ### Authentication (`/auth`)
 
-| Method | Endpoint | Description | Auth Required | Body/Params |
-|--------|----------|-------------|---------------|-------------|
-| POST | `/auth/signup` | User registration | No | `{ username, email, password, gender, phone, dob, confirmPass}` |
-| POST | `/auth/confirm-email` | Confirm email with OTP | No | `{email, otp}` |
-| POST | `/auth/resend-confirm-email` | Resend email confirmation | No | `{email}` |
-| POST | `/auth/request_forgot_password` | Request password reset | No | `{email}` |
-| POST | `/auth/verify_forgot_password` | Confirm password reset with OTP | No | `{email, otp}` |
-| POST | `/auth/reset-password` | Reset password | No | `{email, otp, newPassword}` |
-| POST | `/auth/login` | User login | No | `{email, password}` |
-| POST | `/auth/signup/gmail` | Signup with Gmail | No | Google OAuth data |
-| POST | `/auth/login/gmail` | Login with Gmail | No | Google OAuth data |
+| Method | Endpoint                        | Description                     | Auth Required | Body/Params                                                     |
+| ------ | ------------------------------- | ------------------------------- | ------------- | --------------------------------------------------------------- |
+| POST   | `/auth/signup`                  | User registration               | No            | `{ username, email, password, gender, phone, dob, confirmPass}` |
+| POST   | `/auth/confirm-email`           | Confirm email with OTP          | No            | `{email, otp}`                                                  |
+| POST   | `/auth/resend-confirm-email`    | Resend email confirmation       | No            | `{email}`                                                       |
+| POST   | `/auth/request_forgot_password` | Request password reset          | No            | `{email}`                                                       |
+| POST   | `/auth/verify_forgot_password`  | Confirm password reset with OTP | No            | `{email, otp}`                                                  |
+| POST   | `/auth/reset-password`          | Reset password                  | No            | `{email, otp, newPassword}`                                     |
+| POST   | `/auth/login`                   | User login                      | No            | `{email, password}`                                             |
+| POST   | `/auth/signup/gmail`            | Signup with Gmail               | No            | Google OAuth data                                               |
+| POST   | `/auth/login/gmail`             | Login with Gmail                | No            | Google OAuth data                                               |
 
 ### User Management (`/user`)
 
-| Method | Endpoint | Description | Auth Required | Body/Params |
-|--------|----------|-------------|---------------|-------------|
-| GET | `/user/profile` | Get user profile | Yes | - |
-| PATCH | `/user/profile-image` | Update profile image | Yes | Form-data: `attachment` (image file) |
-| PATCH | `/user/profile-cover-image` | Update cover images | Yes | Form-data: `attachments` (up to 5 images) |
-| POST | `/user/logout` | Logout user | Yes | `{refreshToken}` |
-| GET | `/user/:userId/share-profile` | Get public profile | No | URL param: `userId` |
-| POST | `/user/rotate-token` | Refresh access token | Yes (refresh token) | - |
-| POST | `/user/password` | Update password | Yes | `{oldPassword, newPassword}` |
+| Method | Endpoint                      | Description          | Auth Required       | Body/Params                               |
+| ------ | ----------------------------- | -------------------- | ------------------- | ----------------------------------------- |
+| GET    | `/user/profile`               | Get user profile     | Yes                 | -                                         |
+| PATCH  | `/user/profile-image`         | Update profile image | Yes                 | Form-data: `attachment` (image file)      |
+| PATCH  | `/user/profile-cover-image`   | Update cover images  | Yes                 | Form-data: `attachments` (up to 5 images) |
+| POST   | `/user/logout`                | Logout user          | Yes                 | `{refreshToken}`                          |
+| GET    | `/user/:userId/share-profile` | Get public profile   | No                  | URL param: `userId`                       |
+| POST   | `/user/rotate-token`          | Refresh access token | Yes (refresh token) | -                                         |
+| POST   | `/user/update-password`       | Update password      | Yes                 | `{oldPassword, newPassword}`              |
 
 ### Messages (`/message`)
 
-| Method | Endpoint | Description | Auth Required | Body/Params |
-|--------|----------|-------------|---------------|-------------|
-| POST | `/message/:receiverid` | Send anonymous message | No | Form-data: `message`, `attachments` (up to 2 images), URL param: `receiverId` |
-| GET | `/message/:messageId` | Get specific message | Yes | URL param: `messageId` |
-| DELETE | `/message/:messageId` | Delete message | Yes | URL param: `messageId` |
-| GET | `/message/list` | Get received messages | Yes | - |
+| Method | Endpoint                             | Description            | Auth Required | Body/Params                                                                   |
+| ------ | ------------------------------------ | ---------------------- | ------------- | ----------------------------------------------------------------------------- |
+| POST   | `/message/send-message/:receiverId`  | Send anonymous message | No            | Form-data: `message`, `attachments` (up to 2 images), URL param: `receiverId` |
+| GET    | `/message/get-message/:messageId`    | Get specific message   | Yes           | URL param: `messageId`                                                        |
+| DELETE | `/message/delete-message/:messageId` | Delete message         | Yes           | URL param: `messageId`                                                        |
+| GET    | `/message/my-messages`               | Get received messages  | Yes           | -                                                                             |
 
 ### Static Files
 
@@ -168,6 +168,7 @@ SarahaApp_online/
 ## Database Models
 
 ### User
+
 - email (unique)
 - password (hashed)
 - username
@@ -177,6 +178,7 @@ SarahaApp_online/
 - profileImage, coverImages (arrays)
 
 ### Message
+
 - senderId (optional, for authenticated sends)
 - receiverId
 - message (text)
@@ -190,4 +192,3 @@ SarahaApp_online/
 3. Make your changes
 4. Test thoroughly
 5. Submit a pull request
-

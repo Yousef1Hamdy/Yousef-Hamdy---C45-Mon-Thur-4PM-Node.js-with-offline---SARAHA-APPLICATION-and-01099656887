@@ -1,6 +1,7 @@
 import { NotFoundException } from "../../common/index.js";
 import {
   createOne,
+  find,
   findOne,
   findOneAndDelete,
   MessageModel,
@@ -75,7 +76,7 @@ export const deleteMessage = async (messageId, user) => {
 };
 
 export const getMessages = async (user) => {
-  const messages = await findOne({
+  const messages = await find({
     model: MessageModel,
     filter: {
       $or: [{ receiverId: user._id }, { senderId: user._id }],

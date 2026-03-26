@@ -24,7 +24,7 @@ import * as validators from "./user.validation.js";
 const router = Router();
 
 router.get(
-  "/",
+  "/profile",
   authentication(TokenTypeEnum.access),
   authorization(endpoint.profile),
   async (req, res, next) => {
@@ -106,7 +106,7 @@ router.post(
 );
 
 router.post(
-  "/password",
+  "/update-password",
   authentication(),
   validation(validators.updatePassword),
   async (req, res, next) => {
