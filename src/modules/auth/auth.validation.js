@@ -10,17 +10,38 @@ export const login = {
     .required(),
 };
 
-export const signup = login.body.append({
-  username: generalValidationFields.username.required(),
-  phone: generalValidationFields.phone.required(),
-  confirmPassword: generalValidationFields.confirmPassword("password").required(),
-});
+export const signup = {
+  body: login.body.append({
+    username: generalValidationFields.username.required(),
+    phone: generalValidationFields.phone.required(),
+    confirmPassword: generalValidationFields
+      .confirmPassword("password")
+      .required(),
+  }),
+};
 
-export const confirmEmail = joi.object().keys({
-  email: generalValidationFields.email.required(),
-  otp: generalValidationFields.otp.required(),
-});
+export const resendConfirmEmail = {
+  body: joi
+    .object()
+    .keys({
+      email: generalValidationFields.email.required(),
+    })
+    .required(),
+};
 
-export const resendConfirmEmail = joi.object().keys({
-  email: generalValidationFields.email.required(),
-});
+export const confirmEmail = {
+  body: resendConfirmEmail.body.append({
+    otp: generalValidationFields.otp.required(),
+  }),
+};
+
+export const resetForgotPassword = {
+  body: confirmEmail.body.append({
+    password: generalValidationFields.password.required(),
+    confirmPassword: generalValidationFields
+      .confirmPassword("password")
+      .required(),
+  }),
+};
+
+

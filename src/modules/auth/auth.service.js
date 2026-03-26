@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  baseRevokeTokenKey,
   compareHash,
   ConflictException,
   createLoginCredentials,
@@ -22,7 +23,12 @@ import {
   set,
   ttl,
 } from "../../common/index.js";
-import { createOne, findOne, UserModel } from "../../DB/index.js";
+import {
+  createOne,
+  findOne,
+  findOneAndUpdate,
+  UserModel,
+} from "../../DB/index.js";
 import { OAuth2Client } from "google-auth-library";
 
 export const verifyEmailOtp = async ({
@@ -117,7 +123,7 @@ export const resendConfirmEmail = async (inputs) => {
     throw NotFoundException({ message: "Fail to find matching account" });
   }
 
-  const remainTime = await ttl(otpKey(email));
+  const remainTime = await ttl(otpKey({ email }));
   if (remainTime > 0) {
     throw ConflictException({
       message: `sorry we can't provider a new otp until exists one is expire you can try again later after ${remainTime} second`,
@@ -126,6 +132,72 @@ export const resendConfirmEmail = async (inputs) => {
 
   await verifyEmailOtp({ email });
 
+  return;
+};
+
+export const requestForgotPasswordOtp = async (inputs) => {
+  const { email } = inputs;
+
+  const account = await findOne({
+    model: UserModel,
+    filter: {
+      email,
+      confirmEmail: { $exists: true },
+      provider: ProviderEnum.System,
+    },
+  });
+
+  if (!account) {
+    throw NotFoundException({ message: "Fail to find matching account" });
+  }
+
+  await verifyEmailOtp({
+    email,
+    subject: EmailEnum.ForgotPassword,
+    title: "Reset Code",
+  });
+
+  return;
+};
+
+export const verifyForgotPasswordOtp = async (inputs) => {
+  const { email, otp } = inputs;
+
+  const hashOtp = await get(otpKey({ email, type: EmailEnum.ForgotPassword }));
+
+  if (!hashOtp) {
+    throw NotFoundException({ message: "Expired otp" });
+  }
+
+  if (!compareHash({ plaintext: otp, cipherText: hashOtp })) {
+    throw ConflictException({ message: "Invalid otp" });
+  }
+  return;
+};
+
+export const resetForgotPasswordOtp = async (inputs) => {
+  const { email, otp, password } = inputs;
+  await verifyForgotPasswordOtp({ email, otp });
+  const user = await findOneAndUpdate({
+    model: UserModel,
+    filter: {
+      email,
+      confirmEmail: { $exists: true },
+      provider: ProviderEnum.System,
+    },
+    update: {
+      password: await generateHash({ plaintext: password }),
+      changeCredentialTime: new Date(),
+    },
+  });
+
+  if (!user) {
+    throw NotFoundException({ message: "Account not exists" });
+  }
+
+  const tokenKeys = await keys(baseRevokeTokenKey(user._id));
+  const otpKeys = await keys(otpKey({ email, type: EmailEnum.ForgotPassword }));
+  await deleteKey([...tokenKeys, ...otpKeys]);
   return;
 };
 
@@ -145,7 +217,7 @@ export const confirmEmail = async (inputs) => {
     throw NotFoundException({ message: "Fail to find matching account" });
   }
 
-  const hashOtp = await get(otpKey(email));
+  const hashOtp = await get(otpKey({ email }));
 
   if (!hashOtp) {
     throw NotFoundException({ message: "Expired otp" });

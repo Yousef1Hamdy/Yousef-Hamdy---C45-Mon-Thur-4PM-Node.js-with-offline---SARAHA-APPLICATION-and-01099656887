@@ -4,10 +4,12 @@ import {
 } from "../../../config/config.service.js";
 import {
   baseRevokeTokenKey,
+  compareHash,
   ConflictException,
   createLoginCredentials,
   decrypt,
   deleteKey,
+  generateHash,
   keys,
   LogoutEnum,
   NotFoundException,
@@ -85,4 +87,34 @@ export const shareProfile = async (userId) => {
   }
 
   return account;
+};
+
+export const updatePassword = async (
+  { oldPassword, password },
+  user,
+  issuer,
+) => {
+
+  console.log({oldPassword , password , user});
+  if (
+    !(await compareHash({ plaintext: oldPassword, cipherText: user.password }))
+  ) {
+    throw ConflictException({ message: "Invalid old password" });
+  }
+
+  for (const hash of user.oldPassword || []) {
+    if (await compareHash({ plaintext: password, cipherText: hash })) {
+      throw ConflictException({
+        message: "This password is already used before",
+      });
+    }
+  }
+
+  user.oldPassword.push(user.password);
+  user.password = await generateHash({ plaintext: password });
+  user.changeCredentialTime = new Date();
+  await user.save();
+
+  await deleteKey(await keys(baseRevokeTokenKey(user._id)));
+  return await createLoginCredentials(user, issuer);
 };

@@ -5,6 +5,21 @@ import {
   generalValidationFields,
 } from "../../common/index.js";
 
+export const updatePassword = {
+  body: joi
+    .object()
+    .keys({
+      oldPassword: generalValidationFields.password.required(),
+      password: generalValidationFields.password
+        .not(joi.ref("oldPassword"))
+        .required(),
+      confirmPassword: generalValidationFields
+        .confirmPassword("password")
+        .required(),
+    })
+    .required(),
+};
+
 export const shareProfile = {
   params: joi
     .object()

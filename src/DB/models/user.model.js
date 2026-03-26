@@ -45,6 +45,7 @@ const userSchema = new mongoose.Schema(
       enum: Object.values(GenderEnum),
       default: GenderEnum.Male,
     },
+    oldPassword:[String],
     profilePicture: String,
     coverProfilePictures: [String],
     confirmEmail: Date,

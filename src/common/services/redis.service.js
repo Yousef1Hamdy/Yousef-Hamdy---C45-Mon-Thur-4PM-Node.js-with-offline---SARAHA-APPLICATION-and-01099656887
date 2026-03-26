@@ -17,7 +17,7 @@ export const otpBlockKey = ({ email, type = EmailEnum.ConfirmEmail } = {}) => {
 };
 
 export const baseRevokeTokenKey = (userId) => {
-  return `RevokeToken::${userId}`;
+  return `RevokeToken::${userId.toString()}`;
 };
 
 export const revokeTokenKey = ({ userId, jti }) => {

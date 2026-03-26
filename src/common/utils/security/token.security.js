@@ -117,7 +117,7 @@ export const decodeToken = async ({
   tokenType = TokenTypeEnum.access,
 } = {}) => {
   if (!token) {
-    throw ErrorException({ message: "missing token", cause: 400 });
+    throw BadRequestException({ message: "missing token" });
   }
   const decode = jwt.decode(token);
   if (!decode.aud?.length) {
@@ -131,12 +131,15 @@ export const decodeToken = async ({
       message: `Invalid token type token of type ${decodeTokenType} can't access this api while we expected token of type ${tokenType}`,
     });
   }
+// 
   if (
     decode.jti &&
     (await get(revokeTokenKey({ userId: decode.sub, jti: decode.jti })))
   ) {
     throw UnauthorizedException({ message: "Invalid login session -" });
   }
+  // 
+
   const signatureLevel = await getSignatureLevel(audienceType);
 
   const { accessSignature, refreshSignature } =
@@ -150,6 +153,7 @@ export const decodeToken = async ({
   const user = await findOne({
     model: UserModel,
     filter: { _id: verifyData.sub },
+    select: "+password",
   });
 
   if (!user) {

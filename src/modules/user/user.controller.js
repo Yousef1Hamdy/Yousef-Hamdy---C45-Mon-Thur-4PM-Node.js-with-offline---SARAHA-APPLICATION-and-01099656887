@@ -6,6 +6,7 @@ import {
   rotateToken,
   shareProfile,
   logout,
+  updatePassword,
 } from "./user.service.js";
 import { endpoint } from "./user.authorization.js";
 import {
@@ -22,29 +23,12 @@ import { validation } from "../../middleware/validation.middleware.js";
 import * as validators from "./user.validation.js";
 const router = Router();
 
-router.post("/logout", authentication(), async (req, res, next) => {
-  const status = await logout(req.body, req.user, req.decoded);
-
-  return successResponse({ res, status });
-});
-
 router.get(
   "/",
   authentication(TokenTypeEnum.access),
   authorization(endpoint.profile),
   async (req, res, next) => {
     const account = await profile(req.user);
-
-    return res.status(200).json({ message: "Profile", account });
-  },
-);
-
-router.get(
-  "/:userId/share-profile",
-  validation(validators.shareProfile),
-  async (req, res, next) => {
-    const userId = req.params.userId;
-    const account = await shareProfile(userId);
 
     return res.status(200).json({ message: "Profile", account });
   },
@@ -86,6 +70,23 @@ router.patch(
   },
 );
 
+router.post("/logout", authentication(), async (req, res, next) => {
+  const status = await logout(req.body, req.user, req.decoded);
+
+  return successResponse({ res, status });
+});
+
+router.get(
+  "/:userId/share-profile",
+  validation(validators.shareProfile),
+  async (req, res, next) => {
+    const userId = req.params.userId;
+    const account = await shareProfile(userId);
+
+    return res.status(200).json({ message: "Profile", account });
+  },
+);
+
 router.post(
   "/rotate-token",
   authentication(TokenTypeEnum.refresh),
@@ -103,4 +104,20 @@ router.post(
     });
   },
 );
+
+router.post(
+  "/password",
+  authentication(),
+  validation(validators.updatePassword),
+  async (req, res, next) => {
+    const credentials = await updatePassword(
+      req.body,
+      req.user,
+      `${req.protocol}://${req.host}`,
+    );
+
+    return successResponse({ res, data: credentials });
+  },
+);
+
 export default router;
